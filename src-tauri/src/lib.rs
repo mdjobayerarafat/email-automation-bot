@@ -14,6 +14,10 @@ mod auth;
 mod email_service;
 mod encryption;
 mod scheduler;
+mod attachment_service;
+mod contact_service;
+mod inbox_service;
+mod campaign_service;
 
 use models::*;
 use database::Database;
@@ -21,6 +25,10 @@ use auth::AuthService;
 use email_service::EmailService;
 use encryption::EncryptionService;
 use scheduler::SchedulerService;
+use attachment_service::AttachmentService;
+use contact_service::ContactService;
+use inbox_service::InboxService;
+use campaign_service::CampaignService;
 
 // Application state
 #[derive(Clone)]
@@ -30,6 +38,10 @@ struct AppState {
     email_service: Arc<Mutex<EmailService>>,
     encryption_service: Arc<EncryptionService>,
     scheduler_service: Arc<SchedulerService>,
+    attachment_service: Arc<AttachmentService>,
+    contact_service: Arc<ContactService>,
+    inbox_service: Arc<InboxService>,
+    campaign_service: Arc<CampaignService>,
 }
 
 fn initialize_app(app_handle: tauri::AppHandle) -> Result<String, String> {
@@ -90,6 +102,30 @@ fn initialize_app(app_handle: tauri::AppHandle) -> Result<String, String> {
          )
      );
      
+     let attachment_service = Arc::new(
+         AttachmentService::new(Arc::clone(&database))
+     );
+     
+     let contact_service = Arc::new(
+         ContactService::new(Arc::clone(&database))
+     );
+     
+     let inbox_service = Arc::new(
+         InboxService::new(
+             Arc::clone(&database),
+             Arc::clone(&email_service),
+             Arc::clone(&attachment_service),
+         )
+     );
+     
+     let campaign_service = Arc::new(
+         CampaignService::new(
+             Arc::clone(&database),
+             Arc::clone(&email_service),
+             Arc::clone(&contact_service),
+         )
+     );
+     
      // Store database in app state
      let app_state = AppState {
          database,
@@ -97,6 +133,10 @@ fn initialize_app(app_handle: tauri::AppHandle) -> Result<String, String> {
          email_service,
          encryption_service,
          scheduler_service,
+         attachment_service,
+         contact_service,
+         inbox_service,
+         campaign_service,
      };
     
     app_handle.manage(app_state);
@@ -403,6 +443,238 @@ fn get_email_logs(
         .map_err(|e| e.to_string())
 }
 
+// Contact Management Commands
+#[tauri::command]
+fn create_contact_list(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    list_data: CreateContactList,
+) -> Result<ContactList, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.contact_service.create_contact_list(user.id, list_data)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_contact_lists(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<Vec<ContactList>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.contact_service.get_user_contact_lists(user.id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn import_contacts(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    import_data: ImportContactsRequest,
+) -> Result<String, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    let imported_count = state.contact_service.import_contacts_from_csv(user.id, import_data)?
+        .len();
+    Ok(format!("Successfully imported {} contacts", imported_count))
+}
+
+#[tauri::command]
+fn get_contacts(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    list_id: i32,
+) -> Result<Vec<Contact>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.contact_service.get_contacts_by_list(user.id, list_id)
+        .map_err(|e| e.to_string())
+}
+
+// Inbox Monitor Commands
+#[tauri::command]
+fn create_inbox_monitor(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    monitor_data: CreateInboxMonitor,
+) -> Result<InboxMonitor, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.inbox_service.create_inbox_monitor(user.id, monitor_data)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_inbox_monitors(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<Vec<InboxMonitor>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.inbox_service.get_user_inbox_monitors(user.id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn check_inbox(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    account_id: i32,
+) -> Result<Vec<InboxEmail>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.inbox_service.check_inbox(user.id, account_id).await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn toggle_inbox_monitor(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    monitor_id: i32,
+    is_active: bool,
+) -> Result<InboxMonitor, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.inbox_service.toggle_inbox_monitor(user.id, monitor_id, is_active)
+        .map_err(|e| e.to_string())
+}
+
+// Campaign Management Commands
+#[tauri::command]
+fn create_campaign(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    campaign_data: CreateEmailCampaign,
+) -> Result<EmailCampaign, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.campaign_service.create_campaign(user.id, campaign_data)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_campaigns(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<Vec<EmailCampaign>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.campaign_service.get_user_campaigns(user.id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn send_campaign(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    batch_request: BatchEmailRequest,
+) -> Result<String, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.campaign_service.send_batch_emails(user.id, batch_request).await
+        .map_err(|e| e.to_string())?;
+    Ok("Campaign sent successfully".to_string())
+}
+
+#[tauri::command]
+fn get_campaign_stats(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    campaign_id: i32,
+) -> Result<campaign_service::CampaignStats, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.campaign_service.get_campaign_stats(user.id, campaign_id)
+        .map_err(|e| e.to_string())
+}
+
+// Attachment Management Commands
+#[tauri::command]
+fn get_attachments(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<Vec<EmailAttachment>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.attachment_service.get_user_attachments(user.id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_attachment_categories(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<Vec<AttachmentCategory>, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.attachment_service.get_attachment_categories(user.id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_attachment(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    attachment_id: i32,
+) -> Result<String, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    state.attachment_service.delete_attachment(user.id, attachment_id)
+        .map_err(|e| e.to_string())?;
+    Ok("Attachment deleted successfully".to_string())
+}
+
+// Export Commands
+#[tauri::command]
+fn export_logs(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    export_request: ExportLogsRequest,
+) -> Result<String, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    // Get logs based on filters
+    let logs = state.database.get_email_logs(user.id, export_request.limit)
+        .map_err(|e| e.to_string())?;
+    
+    match export_request.format.as_str() {
+        "csv" => {
+            // TODO: Implement CSV export
+            Ok("CSV export not yet implemented".to_string())
+        },
+        "json" => {
+            let json_data = serde_json::to_string_pretty(&logs)
+                .map_err(|e| format!("Failed to serialize logs: {}", e))?;
+            Ok(json_data)
+        },
+        _ => Err("Unsupported export format".to_string())
+    }
+}
+
+// Dashboard Stats
+#[tauri::command]
+fn get_dashboard_stats(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<DashboardStats, String> {
+    let user = state.auth_service.extract_user_from_token(&token)?;
+    
+    // Get various stats for dashboard
+    let email_stats = state.database.get_email_stats(user.id)
+        .map_err(|e| e.to_string())?;
+    
+    let contact_count = state.contact_service.get_total_contacts(user.id)
+        .unwrap_or(0);
+    
+    let template_count = state.database.get_email_templates(user.id)
+        .map(|templates| templates.len() as i32)
+        .unwrap_or(0);
+    
+    let campaign_count = state.campaign_service.get_user_campaigns(user.id)
+        .map(|campaigns| campaigns.len() as i32)
+        .unwrap_or(0);
+    
+    let monitor_count = state.inbox_service.get_user_inbox_monitors(user.id)
+        .map(|monitors| monitors.len() as i32)
+        .unwrap_or(0);
+    
+    Ok(DashboardStats {
+        total_emails_sent: email_stats.total_sent,
+        total_emails_failed: email_stats.total_failed,
+        total_contacts: contact_count,
+        total_templates: template_count,
+        total_campaigns: campaign_count,
+        active_monitors: monitor_count,
+        recent_activity: Vec::new(), // TODO: Implement recent activity
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Load environment variables from .env file
@@ -442,7 +714,30 @@ pub fn run() {
             validate_cron_pattern,
             get_next_occurrences,
             get_email_stats,
-            get_email_logs
+            get_email_logs,
+            // Contact Management
+            create_contact_list,
+            get_contact_lists,
+            import_contacts,
+            get_contacts,
+            // Inbox Monitor
+            create_inbox_monitor,
+            get_inbox_monitors,
+            check_inbox,
+            toggle_inbox_monitor,
+            // Campaign Management
+            create_campaign,
+            get_campaigns,
+            send_campaign,
+            get_campaign_stats,
+            // Attachment Management
+            get_attachments,
+            get_attachment_categories,
+            delete_attachment,
+            // Export
+            export_logs,
+            // Dashboard
+            get_dashboard_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
