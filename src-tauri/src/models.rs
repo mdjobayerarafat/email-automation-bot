@@ -286,3 +286,161 @@ impl From<anyhow::Error> for AppError {
         AppError::Internal(err.to_string())
     }
 }
+
+// New models for enhanced features
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmailAttachment {
+    pub id: i32,
+    pub user_id: i32,
+    pub email_log_id: i32,
+    pub filename: String,
+    pub original_filename: String,
+    pub file_path: String,
+    pub file_size: Option<i64>,
+    pub mime_type: Option<String>,
+    pub sender_email: Option<String>,
+    pub received_at: Option<DateTime<Utc>>,
+    pub category: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateEmailAttachment {
+    pub user_id: i32,
+    pub email_log_id: i32,
+    pub filename: String,
+    pub original_filename: String,
+    pub file_path: String,
+    pub file_size: Option<i64>,
+    pub mime_type: Option<String>,
+    pub sender_email: Option<String>,
+    pub received_at: Option<DateTime<Utc>>,
+    pub category: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContactList {
+    pub id: i32,
+    pub user_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateContactList {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Contact {
+    pub id: i32,
+    pub user_id: i32,
+    pub contact_list_id: i32,
+    pub email: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub custom_fields: Option<serde_json::Value>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateContact {
+    pub contact_list_id: i32,
+    pub email: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub custom_fields: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImportContactsRequest {
+    pub contact_list_id: i32,
+    pub csv_data: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmailCampaign {
+    pub id: i32,
+    pub user_id: i32,
+    pub name: String,
+    pub template_id: Option<i32>,
+    pub contact_list_id: Option<i32>,
+    pub status: String,
+    pub scheduled_time: Option<DateTime<Utc>>,
+    pub total_recipients: i32,
+    pub sent_count: i32,
+    pub failed_count: i32,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateEmailCampaign {
+    pub name: String,
+    pub template_id: Option<i32>,
+    pub contact_list_id: Option<i32>,
+    pub scheduled_time: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InboxMonitor {
+    pub id: i32,
+    pub user_id: i32,
+    pub email_account_id: i32,
+    pub is_active: bool,
+    pub check_interval: i32,
+    pub last_check: Option<DateTime<Utc>>,
+    pub auto_reply_template_id: Option<i32>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateInboxMonitor {
+    pub email_account_id: i32,
+    pub check_interval: Option<i32>,
+    pub auto_reply_template_id: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InboxEmail {
+    pub id: String,
+    pub subject: String,
+    pub sender: String,
+    pub received_at: DateTime<Utc>,
+    pub body: String,
+    pub attachments: Vec<String>,
+    pub is_read: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExportLogsRequest {
+    pub format: String, // 'csv' or 'json'
+    pub date_from: Option<DateTime<Utc>>,
+    pub date_to: Option<DateTime<Utc>>,
+    pub status_filter: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AttachmentCategory {
+    pub category: String,
+    pub count: i32,
+    pub total_size: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DashboardStats {
+    pub total_sent: i32,
+    pub total_received: i32,
+    pub total_failed: i32,
+    pub automation_rules_count: i32,
+    pub active_campaigns: i32,
+    pub total_contacts: i32,
+    pub attachment_categories: Vec<AttachmentCategory>,
+    pub recent_activity: Vec<EmailLog>,
+}
