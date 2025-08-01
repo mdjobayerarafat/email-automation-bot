@@ -94,31 +94,27 @@ const EmailAccountsPage: React.FC<EmailAccountsPageProps> = ({
         />
         <input
           type="text"
-          placeholder="SMTP Server"
-          value={emailAccountForm.smtp_server}
-          onChange={(e) => setEmailAccountForm({...emailAccountForm, smtp_server: e.target.value})}
-          required
+          placeholder="SMTP Server (optional)"
+          value={emailAccountForm.smtp_server || ''}
+          onChange={(e) => setEmailAccountForm({...emailAccountForm, smtp_server: e.target.value || undefined})}
         />
         <input
           type="number"
-          placeholder="SMTP Port"
-          value={emailAccountForm.smtp_port}
-          onChange={(e) => setEmailAccountForm({...emailAccountForm, smtp_port: parseInt(e.target.value)})}
-          required
+          placeholder="SMTP Port (optional)"
+          value={emailAccountForm.smtp_port || ''}
+          onChange={(e) => setEmailAccountForm({...emailAccountForm, smtp_port: e.target.value ? parseInt(e.target.value) : undefined})}
         />
         <input
           type="text"
-          placeholder="IMAP Server"
-          value={emailAccountForm.imap_server}
-          onChange={(e) => setEmailAccountForm({...emailAccountForm, imap_server: e.target.value})}
-          required
+          placeholder="IMAP Server (optional)"
+          value={emailAccountForm.imap_server || ''}
+          onChange={(e) => setEmailAccountForm({...emailAccountForm, imap_server: e.target.value || undefined})}
         />
         <input
           type="number"
-          placeholder="IMAP Port"
-          value={emailAccountForm.imap_port}
-          onChange={(e) => setEmailAccountForm({...emailAccountForm, imap_port: parseInt(e.target.value)})}
-          required
+          placeholder="IMAP Port (optional)"
+          value={emailAccountForm.imap_port || ''}
+          onChange={(e) => setEmailAccountForm({...emailAccountForm, imap_port: e.target.value ? parseInt(e.target.value) : undefined})}
         />
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Adding...' : 'Add Account'}
@@ -132,8 +128,12 @@ const EmailAccountsPage: React.FC<EmailAccountsPageProps> = ({
             <div className="account-info">
               <h4>{account.account_name}</h4>
               <p className="email-address">{account.email_address}</p>
-              <p>SMTP: {account.smtp_server}:{account.smtp_port}</p>
-              <p>IMAP: {account.imap_server}:{account.imap_port}</p>
+              {account.smtp_server && account.smtp_port && (
+                <p>SMTP: {account.smtp_server}:{account.smtp_port}</p>
+              )}
+              {account.imap_server && account.imap_port && (
+                <p>IMAP: {account.imap_server}:{account.imap_port}</p>
+              )}
               <p>Status: {account.is_active ? 'Active' : 'Inactive'}</p>
             </div>
             <button onClick={() => handleTestConnection(account.id)}>

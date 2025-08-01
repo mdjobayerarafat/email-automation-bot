@@ -103,7 +103,8 @@ fn initialize_app(app_handle: tauri::AppHandle) -> Result<String, String> {
      );
      
      let attachment_service = Arc::new(
-         AttachmentService::new(Arc::clone(&database))
+         AttachmentService::new(Arc::clone(&database), &app_data_dir)
+             .map_err(|e| format!("Failed to initialize attachment service: {}", e))?
      );
      
      let contact_service = Arc::new(
@@ -585,7 +586,7 @@ fn get_attachments(
     token: String,
 ) -> Result<Vec<EmailAttachment>, String> {
     let user = state.auth_service.extract_user_from_token(&token)?;
-    state.attachment_service.get_user_attachments(user.id)
+    state.attachment_service.get_user_attachments(user.id, None)
         .map_err(|e| e.to_string())
 }
 
@@ -649,29 +650,32 @@ fn get_dashboard_stats(
     let email_stats = state.database.get_email_stats(user.id)
         .map_err(|e| e.to_string())?;
     
-    let contact_count = state.contact_service.get_total_contacts(user.id)
+    let contact_count = state.contact_service.get_total_contacts_count(user.id)
         .unwrap_or(0);
     
-    let template_count = state.database.get_email_templates(user.id)
-        .map(|templates| templates.len() as i32)
+    let automation_rules_count = state.database.get_automation_rules(user.id)
+        .map(|rules| rules.len() as i32)
         .unwrap_or(0);
     
     let campaign_count = state.campaign_service.get_user_campaigns(user.id)
         .map(|campaigns| campaigns.len() as i32)
         .unwrap_or(0);
     
-    let monitor_count = state.inbox_service.get_user_inbox_monitors(user.id)
-        .map(|monitors| monitors.len() as i32)
-        .unwrap_or(0);
+    let attachment_categories = state.attachment_service.get_attachment_categories(user.id)
+        .unwrap_or_else(|_| Vec::new());
+    
+    let recent_activity = state.database.get_email_logs(user.id, Some(10))
+        .unwrap_or_else(|_| Vec::new());
     
     Ok(DashboardStats {
-        total_emails_sent: email_stats.total_sent,
-        total_emails_failed: email_stats.total_failed,
+        total_sent: email_stats.total_sent,
+        total_received: email_stats.total_received,
+        total_failed: email_stats.total_failed,
+        automation_rules_count,
+        active_campaigns: campaign_count,
         total_contacts: contact_count,
-        total_templates: template_count,
-        total_campaigns: campaign_count,
-        active_monitors: monitor_count,
-        recent_activity: Vec::new(), // TODO: Implement recent activity
+        attachment_categories,
+        recent_activity,
     })
 }
 

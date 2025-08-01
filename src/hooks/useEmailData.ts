@@ -16,10 +16,12 @@ export const useEmailData = () => {
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
-    total_emails: 0,
-    sent_today: 0,
-    active_rules: 0,
-    success_rate: 0
+    total_emails_sent: 0,
+    total_emails_failed: 0,
+    total_contacts: 0,
+    total_templates: 0,
+    total_campaigns: 0,
+    active_monitors: 0
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,10 +41,12 @@ export const useEmailData = () => {
       setEmailTemplates(templates);
       setAutomationRules(rules);
       setStats({
-        total_emails: statsData.total_sent + statsData.total_received,
-        sent_today: statsData.total_sent,
-        active_rules: rules.filter(rule => rule.is_active).length,
-        success_rate: statsData.success_rate * 100
+        total_emails_sent: statsData.total_sent,
+        total_emails_failed: statsData.total_failed,
+        total_contacts: 0, // Will be populated by dashboard API
+        total_templates: templates.length,
+        total_campaigns: 0, // Will be populated by dashboard API
+        active_monitors: 0 // Will be populated by dashboard API
       });
     } catch (error) {
       throw error;

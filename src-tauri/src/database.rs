@@ -17,6 +17,10 @@ impl Database {
         Ok(db)
     }
 
+    pub fn get_connection(&self) -> std::sync::MutexGuard<Connection> {
+        self.conn.lock().unwrap()
+    }
+
     fn init_tables(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         
@@ -121,6 +125,99 @@ impl Database {
                 scheduled_time TEXT,
                 recurrence_pattern TEXT,
                 status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+            [],
+        )?;
+
+        // Create email_attachments table
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS email_attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                email_log_id INTEGER REFERENCES email_logs(id) ON DELETE CASCADE,
+                filename TEXT NOT NULL,
+                original_filename TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size INTEGER,
+                mime_type TEXT,
+                sender_email TEXT,
+                received_at TEXT,
+                category TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+            [],
+        )?;
+
+        // Create contact_lists table
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS contact_lists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+            [],
+        )?;
+
+        // Create contacts table
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                contact_list_id INTEGER REFERENCES contact_lists(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                first_name TEXT,
+                last_name TEXT,
+                custom_fields TEXT,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+            [],
+        )?;
+
+        // Create email_campaigns table
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS email_campaigns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                template_id INTEGER REFERENCES email_templates(id) ON DELETE SET NULL,
+                contact_list_id INTEGER REFERENCES contact_lists(id) ON DELETE SET NULL,
+                status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'sending', 'completed', 'failed')),
+                scheduled_time TEXT,
+                total_recipients INTEGER DEFAULT 0,
+                sent_count INTEGER DEFAULT 0,
+                failed_count INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+            [],
+        )?;
+
+        // Create inbox_monitors table
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS inbox_monitors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                email_account_id INTEGER REFERENCES email_accounts(id) ON DELETE CASCADE,
+                is_active BOOLEAN DEFAULT 1,
+                check_interval INTEGER DEFAULT 300,
+                last_check TEXT,
+                auto_reply_template_id INTEGER REFERENCES email_templates(id) ON DELETE SET NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
             "#,
@@ -658,5 +755,38 @@ impl Database {
             total_failed,
             automation_rules_count,
         })
+    }
+
+    pub fn get_recent_activity(&self, user_id: i32, limit: Option<i32>) -> Result<Vec<RecentActivity>> {
+        let conn = self.conn.lock().unwrap();
+        let limit_value = limit.unwrap_or(10);
+        
+        let mut stmt = conn.prepare(
+            "SELECT 
+                'email' as activity_type,
+                recipient as description,
+                created_at,
+                status
+             FROM email_logs 
+             WHERE user_id = ?1 
+             ORDER BY created_at DESC 
+             LIMIT ?2"
+        )?;
+        
+        let activity_iter = stmt.query_map([user_id, limit_value], |row| {
+            Ok(RecentActivity {
+                activity_type: row.get(0)?,
+                description: row.get(1)?,
+                timestamp: row.get(2)?,
+                status: row.get(3)?,
+            })
+        })?;
+
+        let mut activities = Vec::new();
+        for activity in activity_iter {
+            activities.push(activity?);
+        }
+        
+        Ok(activities)
     }
 }

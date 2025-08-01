@@ -7,10 +7,10 @@ import '../styles/ComposeEmailPage.css';
 interface ComposeEmailPageProps {
   emailAccounts: EmailAccount[];
   isLoading: boolean;
-  onSendEmail: (emailData: Omit<EmailForm, 'to'> & { to: string[] }) => Promise<void>;
+  onSendEmail: (emailData: EmailForm) => Promise<void>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-  templateData?: { subject: string; html_content: string; text_content: string } | null;
+  templateData?: { subject?: string; body?: string } | null;
   onClearTemplate?: () => void;
 }
 
@@ -24,10 +24,9 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
   onClearTemplate
 }) => {
   const [emailForm, setEmailForm] = useState<EmailForm>({
-    to: '',
+    to: [],
     subject: '',
-    html_body: '',
-    text_body: ''
+    body: ''
   });
   
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -56,9 +55,8 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
     if (templateData) {
       setEmailForm({
         ...emailForm,
-        subject: templateData.subject,
-        html_body: templateData.html_content,
-        text_body: templateData.text_content
+        subject: templateData.subject || '',
+        body: templateData.body || ''
       });
       setSelectedTemplate('from-navigation');
     }
@@ -78,8 +76,7 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
         setEmailForm({
           ...emailForm,
           subject: template.subject,
-          html_body: template.html_content,
-          text_body: template.text_content
+          body: template.html_content
         });
       }
     } else {
@@ -88,9 +85,8 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
       if (template) {
         setEmailForm({
           ...emailForm,
-          subject: template.subject,
-          html_body: template.html_content,
-          text_body: template.text_content || ''
+          subject: template.subject || '',
+          body: template.body || ''
         });
       }
     }
@@ -101,10 +97,9 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
   
   const clearTemplate = () => {
     setEmailForm({
-      to: '',
+      to: [],
       subject: '',
-      html_body: '',
-      text_body: ''
+      body: ''
     });
     setSelectedTemplate('');
     if (onClearTemplate) {
@@ -116,20 +111,14 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
     e.preventDefault();
     
     try {
-      const emailData = {
-        ...emailForm,
-        to: emailForm.to.split(',').map(email => email.trim()).filter(email => email)
-      };
-      
-      await onSendEmail(emailData);
+      await onSendEmail(emailForm);
       onSuccess('Email sent successfully!');
       
       // Reset form
       setEmailForm({
-        to: '',
+        to: [],
         subject: '',
-        html_body: '',
-        text_body: ''
+        body: ''
       });
       setSelectedTemplate('');
     } catch (error) {
@@ -203,9 +192,29 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
             type="text"
             id="to"
             placeholder="To (comma-separated emails)"
-            value={emailForm.to}
-            onChange={(e) => setEmailForm({...emailForm, to: e.target.value})}
+            value={emailForm.to.join(', ')}
+            onChange={(e) => setEmailForm({...emailForm, to: e.target.value.split(',').map(email => email.trim()).filter(email => email)})}
             required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="cc">CC (optional):</label>
+          <input
+            type="text"
+            id="cc"
+            placeholder="CC (comma-separated emails)"
+            value={emailForm.cc?.join(', ') || ''}
+            onChange={(e) => setEmailForm({...emailForm, cc: e.target.value ? e.target.value.split(',').map(email => email.trim()).filter(email => email) : undefined})}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="bcc">BCC (optional):</label>
+          <input
+            type="text"
+            id="bcc"
+            placeholder="BCC (comma-separated emails)"
+            value={emailForm.bcc?.join(', ') || ''}
+            onChange={(e) => setEmailForm({...emailForm, bcc: e.target.value ? e.target.value.split(',').map(email => email.trim()).filter(email => email) : undefined})}
           />
         </div>
         <div className="form-group">
@@ -220,23 +229,14 @@ const ComposeEmailPage: React.FC<ComposeEmailPageProps> = ({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="html_body">HTML Body:</label>
+          <label htmlFor="body">Email Body:</label>
           <textarea
-            id="html_body"
-            placeholder="HTML Body"
-            value={emailForm.html_body}
-            onChange={(e) => setEmailForm({...emailForm, html_body: e.target.value})}
-            rows={8}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="text_body">Text Body (optional):</label>
-          <textarea
-            id="text_body"
-            placeholder="Text Body (optional)"
-            value={emailForm.text_body}
-            onChange={(e) => setEmailForm({...emailForm, text_body: e.target.value})}
-            rows={6}
+            id="body"
+            placeholder="Email Body"
+            value={emailForm.body}
+            onChange={(e) => setEmailForm({...emailForm, body: e.target.value})}
+            rows={10}
+            required
           />
         </div>
         <button type="submit" disabled={isLoading || emailAccounts.length === 0}>

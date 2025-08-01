@@ -1,18 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import './InboxMonitorPage.css';
-
-interface EmailAccount {
-  id: number;
-  email_address: string;
-  display_name?: string;
-}
-
-interface EmailTemplate {
-  id: number;
-  name: string;
-  subject?: string;
-}
+import { invoke } from '@tauri-apps/api/core';
+import { EmailAccount, EmailTemplate } from '../types';
+import '../styles/InboxMonitorPage.css';
 
 interface InboxMonitor {
   id: number;
@@ -140,7 +129,7 @@ const InboxMonitorPage: React.FC<InboxMonitorPageProps> = ({ token }) => {
 
   const getAccountName = (accountId: number): string => {
     const account = emailAccounts.find(acc => acc.id === accountId);
-    return account ? (account.display_name || account.email_address) : 'Unknown Account';
+    return account ? account.email_address : 'Unknown Account';
   };
 
   const getTemplateName = (templateId?: number): string => {
@@ -201,7 +190,7 @@ const InboxMonitorPage: React.FC<InboxMonitorPageProps> = ({ token }) => {
                   <option value={0}>Select an account</option>
                   {emailAccounts.map(account => (
                     <option key={account.id} value={account.id}>
-                      {account.display_name || account.email_address}
+                      {account.email_address}
                     </option>
                   ))}
                 </select>

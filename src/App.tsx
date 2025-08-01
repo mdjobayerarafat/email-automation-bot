@@ -13,7 +13,11 @@ import {
   EmailTemplatesPage,
   AutomationRulesPage,
   ComposeEmailPage,
-  DocumentationPage
+  DocumentationPage,
+  InboxMonitorPage,
+  ContactListsPage,
+  CampaignsPage,
+  AttachmentsPage
 } from './pages';
 import { EmailTemplate } from './types';
 import loadingAnimation from './assets/Figure Message sent.json';
@@ -21,15 +25,14 @@ import loadingAnimation from './assets/Figure Message sent.json';
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isNavigating, setIsNavigating] = useState(false);
-  const [templateData, setTemplateData] = useState<{ subject: string; html_content: string; text_content: string } | null>(null);
+  const [templateData, setTemplateData] = useState<{ subject: string; body: string } | null>(null);
   
   // Custom hooks
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, token, logout } = useAuth();
   const {
     emailAccounts,
     emailTemplates,
     automationRules,
-    stats,
     isLoading: dataLoading,
     loadData,
     createEmailAccount,
@@ -60,19 +63,19 @@ function App() {
   };
 
   // Handle template usage
-  const handleUseTemplate = (template: { subject: string; html_content: string; text_content: string }) => {
-    setTemplateData(template);
+  const handleUseTemplate = (template: { subject?: string; body?: string }) => {
+    setTemplateData(template.subject && template.body ? { subject: template.subject, body: template.body } : null);
     handleTabChange('compose');
   };
 
-  const handleCreateTemplate = async (templateData: Omit<EmailTemplate, 'id' | 'user_id' | 'created_at'>) => {
+  const handleCreateTemplate = async (templateData: Omit<EmailTemplate, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     // Convert EmailTemplate format to TemplateForm format expected by createTemplate
     const convertedData = {
       name: templateData.name,
       subject: templateData.subject,
-      html_content: templateData.html_content,
-      text_content: templateData.text_content || '',
-      variables: templateData.variables
+      body: templateData.body,
+      template_type: templateData.template_type,
+      variables: []
     };
     await createTemplate(convertedData);
   };
@@ -82,7 +85,7 @@ function App() {
     return (
       <ThemeProvider>
         <div className="app">
-          <AuthPage onAuthSuccess={loadData} />
+          <AuthPage onAuthSuccess={() => {}} />
         </div>
       </ThemeProvider>
     );
@@ -95,6 +98,11 @@ function App() {
       case 'templates': return 'Email Templates';
       case 'automation': return 'Automation Rules';
       case 'compose': return 'Compose Email';
+      case 'inbox-monitor': return 'Inbox Monitor';
+      case 'contact-lists': return 'Contact Lists';
+      case 'campaigns': return 'Campaigns';
+      case 'attachments': return 'Attachments';
+      case 'documentation': return 'Documentation';
       default: return 'Dashboard';
     }
   };
@@ -106,6 +114,11 @@ function App() {
       case 'templates': return 'Create and manage email templates';
       case 'automation': return 'Set up automation rules';
       case 'compose': return 'Send emails manually';
+      case 'inbox-monitor': return 'Monitor inbox for keywords and automate responses';
+      case 'contact-lists': return 'Manage contact lists and import contacts';
+      case 'campaigns': return 'Create and manage bulk email campaigns';
+      case 'attachments': return 'View and manage email attachments';
+      case 'documentation': return 'Learn how to use the application';
       default: return 'Overview of your email automation';
     }
   };
@@ -113,14 +126,7 @@ function App() {
   const renderPageContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return (
-          <DashboardPage
-            stats={stats}
-            emailAccounts={emailAccounts}
-            emailTemplates={emailTemplates}
-            automationRules={automationRules}
-          />
-        );
+        return <DashboardPage />;
       case 'accounts':
         return (
           <EmailAccountsPage
@@ -157,17 +163,18 @@ function App() {
             onClearTemplate={() => setTemplateData(null)}
           />
         );
+      case 'inbox-monitor':
+        return <InboxMonitorPage token={token || ''} />;
+      case 'contact-lists':
+        return <ContactListsPage token={token || ''} />;
+      case 'campaigns':
+        return <CampaignsPage token={token || ''} />;
+      case 'attachments':
+        return <AttachmentsPage token={token || ''} />;
       case 'documentation':
         return <DocumentationPage />;
       default:
-        return (
-          <DashboardPage
-            stats={stats}
-            emailAccounts={emailAccounts}
-            emailTemplates={emailTemplates}
-            automationRules={automationRules}
-          />
-        );
+        return <DashboardPage />;
     }
   };
 

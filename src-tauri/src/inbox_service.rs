@@ -31,7 +31,7 @@ impl InboxService {
     
     // Inbox Monitor Management
     pub fn create_inbox_monitor(&self, user_id: i32, monitor_data: CreateInboxMonitor) -> Result<InboxMonitor, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         // Verify the email account belongs to the user
         let account_exists = conn.query_row(
@@ -62,7 +62,7 @@ impl InboxService {
     }
     
     pub fn get_inbox_monitor(&self, user_id: i32, monitor_id: i32) -> Result<InboxMonitor, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, email_account_id, is_active, check_interval, last_check, auto_reply_template_id, created_at
@@ -86,7 +86,7 @@ impl InboxService {
     }
     
     pub fn get_user_inbox_monitors(&self, user_id: i32) -> Result<Vec<InboxMonitor>, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, email_account_id, is_active, check_interval, last_check, auto_reply_template_id, created_at
@@ -115,7 +115,7 @@ impl InboxService {
     }
     
     pub fn update_inbox_monitor(&self, user_id: i32, monitor_id: i32, monitor_data: CreateInboxMonitor) -> Result<InboxMonitor, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let check_interval = monitor_data.check_interval.unwrap_or(300);
         
@@ -135,7 +135,7 @@ impl InboxService {
     }
     
     pub fn toggle_inbox_monitor(&self, user_id: i32, monitor_id: i32, is_active: bool) -> Result<InboxMonitor, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         conn.execute(
             "UPDATE inbox_monitors SET is_active = ?1 WHERE id = ?2 AND user_id = ?3",
@@ -146,7 +146,7 @@ impl InboxService {
     }
     
     pub fn delete_inbox_monitor(&self, user_id: i32, monitor_id: i32) -> Result<(), AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let rows_affected = conn.execute(
             "DELETE FROM inbox_monitors WHERE id = ?1 AND user_id = ?2",
@@ -164,21 +164,23 @@ impl InboxService {
     // Email checking functionality
     pub async fn check_inbox(&self, user_id: i32, account_id: i32) -> Result<Vec<InboxEmail>, AppError> {
         // Get email account details
-        let conn = self.database.get_connection()?;
-        let mut stmt = conn.prepare(
-            "SELECT email_address, imap_server, imap_port, username, password_encrypted
-             FROM email_accounts WHERE id = ?1 AND user_id = ?2"
-        )?;
-        
-        let account_data = stmt.query_row([account_id, user_id], |row| {
-            Ok((
-                row.get::<_, String>(0)?, // email_address
-                row.get::<_, Option<String>>(1)?, // imap_server
-                row.get::<_, Option<i32>>(2)?, // imap_port
-                row.get::<_, String>(3)?, // username
-                row.get::<_, String>(4)?, // password_encrypted
-            ))
-        })?;
+        let account_data = {
+            let conn = self.database.get_connection();
+            let mut stmt = conn.prepare(
+                "SELECT email_address, imap_server, imap_port, username, password_encrypted
+                 FROM email_accounts WHERE id = ?1 AND user_id = ?2"
+            )?;
+            
+            stmt.query_row([account_id, user_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?, // email_address
+                    row.get::<_, Option<String>>(1)?, // imap_server
+                    row.get::<_, Option<i32>>(2)?, // imap_port
+                    row.get::<_, String>(3)?, // username
+                    row.get::<_, String>(4)?, // password_encrypted
+                ))
+            })?
+        };
         
         let (email_address, imap_server, imap_port, username, password_encrypted) = account_data;
         
@@ -193,10 +195,13 @@ impl InboxService {
         let emails = self.fetch_emails_from_imap(&imap_server, imap_port, &username, &password).await?;
         
         // Update last check time
-        conn.execute(
-            "UPDATE inbox_monitors SET last_check = CURRENT_TIMESTAMP WHERE email_account_id = ?1 AND user_id = ?2",
-            [account_id, user_id],
-        )?;
+        {
+            let conn = self.database.get_connection();
+            conn.execute(
+                "UPDATE inbox_monitors SET last_check = CURRENT_TIMESTAMP WHERE email_account_id = ?1 AND user_id = ?2",
+                [account_id, user_id],
+            )?;
+        }
         
         Ok(emails)
     }
@@ -231,7 +236,9 @@ impl InboxService {
         let mut emails = Vec::new();
         
         // Limit to last 50 emails to avoid overwhelming the system
-        let sequences: Vec<_> = sequences.into_iter().rev().take(50).collect();
+        let mut sequences: Vec<_> = sequences.into_iter().collect();
+        sequences.reverse();
+        let sequences: Vec<_> = sequences.into_iter().take(50).collect();
         
         if !sequences.is_empty() {
             let messages = session.fetch(sequences.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(","), "(ENVELOPE BODY[])") 
@@ -245,6 +252,7 @@ impl InboxService {
                         .to_string();
                     
                     let sender = envelope.from
+                        .as_ref()
                         .and_then(|addrs| addrs.first())
                         .and_then(|addr| {
                             let name = addr.name.and_then(|n| std::str::from_utf8(n).ok());
@@ -293,7 +301,7 @@ impl InboxService {
     
     pub async fn process_automation_rules(&self, user_id: i32, email: &InboxEmail) -> Result<(), AppError> {
         // Get active automation rules for the user
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         let mut stmt = conn.prepare(
             "SELECT id, rule_name, keywords, conditions, actions
              FROM automation_rules WHERE user_id = ?1 AND is_active = 1"
@@ -378,7 +386,7 @@ impl InboxService {
         template_id: i32,
     ) -> Result<(), AppError> {
         // Get template
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         let mut stmt = conn.prepare(
             "SELECT subject, body FROM email_templates WHERE id = ?1 AND user_id = ?2"
         )?;

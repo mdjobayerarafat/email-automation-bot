@@ -17,6 +17,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
     { id: 'templates', label: 'Templates', icon: '📝' },
     { id: 'automation', label: 'Automation', icon: '⚡' },
     { id: 'compose', label: 'Compose', icon: '✍️' },
+    { id: 'inbox-monitor', label: 'Inbox Monitor', icon: '🔔' },
+    { id: 'contact-lists', label: 'Contact Lists', icon: '👥' },
+    { id: 'campaigns', label: 'Campaigns', icon: '🚀' },
+    { id: 'attachments', label: 'Attachments', icon: '📎' },
     { id: 'documentation', label: 'Documentation', icon: '📚' },
   ];
 

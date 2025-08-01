@@ -11,10 +11,10 @@ import '../styles/EmailTemplatesPage.css';
 interface EmailTemplatesPageProps {
   emailTemplates: EmailTemplate[];
   isLoading: boolean;
-  onCreateTemplate: (templateData: Omit<EmailTemplate, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  onCreateTemplate: (templateData: Omit<EmailTemplate, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-  onUseTemplate?: (template: { subject: string; html_content: string; text_content: string }) => void;
+  onUseTemplate?: (template: { subject?: string; body?: string }) => void;
 }
 
 const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
@@ -32,34 +32,26 @@ const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
   const [templateForm, setTemplateForm] = useState<TemplateForm>({
     name: '',
     subject: '',
-    html_content: '',
-    text_content: '',
-    variables: ''
+    body: '',
+    template_type: 'email'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const variablesArray = templateForm.variables
-        .split(',')
-        .map(v => v.trim())
-        .filter(v => v.length > 0);
-
       await onCreateTemplate({
         name: templateForm.name,
         subject: templateForm.subject,
-        html_content: templateForm.html_content,
-        text_content: templateForm.text_content,
-        variables: variablesArray
+        body: templateForm.body,
+        template_type: templateForm.template_type
       });
 
       // Reset form
       setTemplateForm({
         name: '',
         subject: '',
-        html_content: '',
-        text_content: '',
-        variables: ''
+        body: '',
+        template_type: 'email'
       });
 
       onSuccess('Template created successfully!');
@@ -73,9 +65,8 @@ const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
     setTemplateForm({
       name: template.name,
       subject: template.subject,
-      html_content: template.html_content,
-      text_content: template.text_content,
-      variables: template.variables.join(', ')
+      body: template.html_content,
+      template_type: 'email'
     });
     setActiveTab('custom');
   };
@@ -161,8 +152,7 @@ const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
                       className="use-now-btn"
                       onClick={() => onUseTemplate({
                         subject: template.subject,
-                        html_content: template.html_content,
-                        text_content: template.text_content
+                        body: template.html_content
                       })}
                     >
                       Use Now
@@ -191,33 +181,26 @@ const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
               
               <input
                 type="text"
-                placeholder="Subject"
-                value={templateForm.subject}
-                onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})}
-                required
+                placeholder="Subject (optional)"
+                value={templateForm.subject || ''}
+                onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value || undefined})}
               />
               
               <textarea
-                placeholder="HTML Content"
-                value={templateForm.html_content}
-                onChange={(e) => setTemplateForm({...templateForm, html_content: e.target.value})}
-                required
+                placeholder="Template Body (optional)"
+                value={templateForm.body || ''}
+                onChange={(e) => setTemplateForm({...templateForm, body: e.target.value || undefined})}
                 rows={10}
               />
               
-              <textarea
-                placeholder="Text Content (optional)"
-                value={templateForm.text_content}
-                onChange={(e) => setTemplateForm({...templateForm, text_content: e.target.value})}
-                rows={5}
-              />
-              
-              <input
-                type="text"
-                placeholder="Variables (comma-separated, e.g., name,email,company)"
-                value={templateForm.variables}
-                onChange={(e) => setTemplateForm({...templateForm, variables: e.target.value})}
-              />
+              <select
+                value={templateForm.template_type || 'email'}
+                onChange={(e) => setTemplateForm({...templateForm, template_type: e.target.value || undefined})}
+              >
+                <option value="email">Email Template</option>
+                <option value="sms">SMS Template</option>
+                <option value="notification">Notification Template</option>
+              </select>
               
               <button type="submit">
                 Create Template
@@ -237,20 +220,14 @@ const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
               propEmailTemplates.map(template => (
                 <div key={template.id} className="template-card">
                   <h4>{template.name}</h4>
-                  <p><strong>Subject:</strong> {template.subject}</p>
-                  <p><strong>Variables:</strong> {template.variables.join(', ')}</p>
+                  {template.subject && <p><strong>Subject:</strong> {template.subject}</p>}
+                  {template.template_type && <p><strong>Type:</strong> {template.template_type}</p>}
                   <div className="template-content">
-                    <details>
-                      <summary>View HTML Content</summary>
-                      <div>
-                        <pre>{template.html_content}</pre>
-                      </div>
-                    </details>
-                    {template.text_content && (
+                    {template.body && (
                       <details>
-                        <summary>View Text Content</summary>
+                        <summary>View Template Body</summary>
                         <div>
-                          <pre>{template.text_content}</pre>
+                          <pre>{template.body}</pre>
                         </div>
                       </details>
                     )}
@@ -261,8 +238,7 @@ const EmailTemplatesPage: React.FC<EmailTemplatesPageProps> = ({
                         className="use-now-btn"
                         onClick={() => onUseTemplate({
                           subject: template.subject,
-                          html_content: template.html_content,
-                          text_content: template.text_content || ''
+                          body: template.body
                         })}
                       >
                         Use Now

@@ -16,7 +16,7 @@ impl ContactService {
     
     // Contact List Management
     pub fn create_contact_list(&self, user_id: i32, list_data: CreateContactList) -> Result<ContactList, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "INSERT INTO contact_lists (user_id, name, description) VALUES (?1, ?2, ?3)"
@@ -32,7 +32,7 @@ impl ContactService {
     }
     
     pub fn get_contact_list(&self, user_id: i32, list_id: i32) -> Result<ContactList, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, name, description, created_at, updated_at
@@ -54,7 +54,7 @@ impl ContactService {
     }
     
     pub fn get_user_contact_lists(&self, user_id: i32) -> Result<Vec<ContactList>, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, name, description, created_at, updated_at
@@ -81,7 +81,7 @@ impl ContactService {
     }
     
     pub fn update_contact_list(&self, user_id: i32, list_id: i32, list_data: CreateContactList) -> Result<ContactList, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         conn.execute(
             "UPDATE contact_lists SET name = ?1, description = ?2, updated_at = CURRENT_TIMESTAMP
@@ -93,7 +93,7 @@ impl ContactService {
     }
     
     pub fn delete_contact_list(&self, user_id: i32, list_id: i32) -> Result<(), AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         // First delete all contacts in the list
         conn.execute(
@@ -117,7 +117,7 @@ impl ContactService {
     
     // Contact Management
     pub fn create_contact(&self, user_id: i32, contact_data: CreateContact) -> Result<Contact, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         // Verify the contact list belongs to the user
         let list_exists = conn.query_row(
@@ -154,7 +154,7 @@ impl ContactService {
     }
     
     pub fn get_contact(&self, user_id: i32, contact_id: i32) -> Result<Contact, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, contact_list_id, email, first_name, last_name, custom_fields, is_active, created_at, updated_at
@@ -187,7 +187,7 @@ impl ContactService {
     }
     
     pub fn get_contacts_by_list(&self, user_id: i32, list_id: i32) -> Result<Vec<Contact>, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, contact_list_id, email, first_name, last_name, custom_fields, is_active, created_at, updated_at
@@ -225,7 +225,7 @@ impl ContactService {
     }
     
     pub fn update_contact(&self, user_id: i32, contact_id: i32, contact_data: CreateContact) -> Result<Contact, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let custom_fields_json = contact_data.custom_fields
             .as_ref()
@@ -251,7 +251,7 @@ impl ContactService {
     }
     
     pub fn delete_contact(&self, user_id: i32, contact_id: i32) -> Result<(), AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let rows_affected = conn.execute(
             "DELETE FROM contacts WHERE id = ?1 AND user_id = ?2",
@@ -269,7 +269,7 @@ impl ContactService {
     // CSV Import functionality
     pub fn import_contacts_from_csv(&self, user_id: i32, import_request: ImportContactsRequest) -> Result<Vec<Contact>, AppError> {
         // Verify the contact list belongs to the user
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         let list_exists = conn.query_row(
             "SELECT 1 FROM contact_lists WHERE id = ?1 AND user_id = ?2",
             [import_request.contact_list_id, user_id],
@@ -303,7 +303,7 @@ impl ContactService {
             match result {
                 Ok(record) => {
                     let email = record.get(email_col)
-                        .ok_or_else(|| format!("Line {}: Missing email", line_num + 2))?;
+                        .ok_or_else(|| AppError::Validation(format!("Line {}: Missing email", line_num + 2)))?;
                     
                     if email.trim().is_empty() {
                         errors.push(format!("Line {}: Empty email", line_num + 2));
@@ -375,7 +375,7 @@ impl ContactService {
     }
     
     pub fn get_total_contacts_count(&self, user_id: i32) -> Result<i32, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let count: i32 = conn.query_row(
             "SELECT COUNT(*) FROM contacts WHERE user_id = ?1 AND is_active = 1",

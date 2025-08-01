@@ -5,3 +5,7 @@ export { default as EmailTemplatesPage } from './EmailTemplatesPage';
 export { default as AutomationRulesPage } from './AutomationRulesPage';
 export { default as ComposeEmailPage } from './ComposeEmailPage';
 export { default as DocumentationPage } from './DocumentationPage';
+export { default as InboxMonitorPage } from './InboxMonitorPage';
+export { default as ContactListsPage } from './ContactListsPage';
+export { default as CampaignsPage } from './CampaignsPage';
+export { default as AttachmentsPage } from './AttachmentsPage';

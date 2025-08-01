@@ -346,6 +346,7 @@ impl EmailService {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;

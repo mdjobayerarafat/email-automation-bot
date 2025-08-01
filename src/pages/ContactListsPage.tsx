@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import './ContactListsPage.css';
+import { invoke } from '@tauri-apps/api/core';
+import '../styles/ContactListsPage.css';
 
 interface ContactList {
   id: number;

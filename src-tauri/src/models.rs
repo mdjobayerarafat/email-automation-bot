@@ -424,6 +424,7 @@ pub struct ExportLogsRequest {
     pub date_from: Option<DateTime<Utc>>,
     pub date_to: Option<DateTime<Utc>>,
     pub status_filter: Option<String>,
+    pub limit: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -431,6 +432,14 @@ pub struct AttachmentCategory {
     pub category: String,
     pub count: i32,
     pub total_size: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RecentActivity {
+    pub activity_type: String,
+    pub description: String,
+    pub timestamp: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

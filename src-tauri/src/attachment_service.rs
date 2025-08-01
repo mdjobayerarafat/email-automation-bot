@@ -91,7 +91,7 @@ impl AttachmentService {
     }
     
     pub fn create_attachment(&self, attachment_data: CreateEmailAttachment) -> Result<EmailAttachment, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "INSERT INTO email_attachments (
@@ -117,7 +117,7 @@ impl AttachmentService {
     }
     
     pub fn get_attachment(&self, attachment_id: i32) -> Result<EmailAttachment, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT id, user_id, email_log_id, filename, original_filename, file_path,
@@ -146,7 +146,7 @@ impl AttachmentService {
     }
     
     pub fn get_user_attachments(&self, user_id: i32, limit: Option<i32>) -> Result<Vec<EmailAttachment>, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let query = if let Some(limit) = limit {
             format!(
@@ -190,7 +190,7 @@ impl AttachmentService {
     }
     
     pub fn get_attachment_categories(&self, user_id: i32) -> Result<Vec<AttachmentCategory>, AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         let mut stmt = conn.prepare(
             "SELECT category, COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size
@@ -229,7 +229,7 @@ impl AttachmentService {
         }
         
         // Delete from database
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         conn.execute(
             "DELETE FROM email_attachments WHERE id = ?1 AND user_id = ?2",
             [attachment_id, user_id],
@@ -240,7 +240,7 @@ impl AttachmentService {
     }
     
     pub fn cleanup_orphaned_attachments(&self) -> Result<(), AppError> {
-        let conn = self.database.get_connection()?;
+        let conn = self.database.get_connection();
         
         // Find attachments that reference non-existent email logs
         let mut stmt = conn.prepare(
